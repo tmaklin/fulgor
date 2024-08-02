@@ -1,6 +1,8 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <atomic>
+#include <memory>
 
 #include "external/CLI11.hpp"
 #include "external/sshash/include/gz/zip_stream.hpp"
@@ -59,7 +61,7 @@ std::string to_string(pseudoalignment_algorithm algo, double threshold) {
 template <typename FulgorIndex>
 int do_map(FulgorIndex const& index, fastx_parser::FastxParser<fastx_parser::ReadSeq>& rparser,
            std::atomic<uint64_t>& num_reads, std::atomic<uint64_t>& num_mapped_reads,
-           pseudoalignment_algorithm algo, const double threshold, std::ofstream& out_file,
+           pseudoalignment_algorithm algo, const double threshold, std::atomic<std::shared_ptr<std::ostream>>& out_stream,
            std::mutex& iomut, std::mutex& ofile_mut) {
     std::vector<uint32_t> colors;  // result of pseudo-alignment
     std::stringstream ss;
@@ -136,7 +138,7 @@ int do_map(FulgorIndex const& index, fastx_parser::FastxParser<fastx_parser::Rea
                     std::string outs = ss.str();
                     ss.str("");
                     ofile_mut.lock();
-                    out_file.write(outs.data(), outs.size());
+                    out_stream.load()->write(outs.data(), outs.size());
                     ofile_mut.unlock();
                     buff_size = 0;
                 }
@@ -177,7 +179,7 @@ int do_map(FulgorIndex const& index, fastx_parser::FastxParser<fastx_parser::Rea
                     std::string outs = ss.str();
                     ss.str("");
                     ofile_mut.lock();
-                    out_file.write(outs.data(), outs.size());
+                    out_stream.load()->write(outs.data(), outs.size());
                     ofile_mut.unlock();
                     buff_size = 0;
                 }
@@ -190,7 +192,7 @@ int do_map(FulgorIndex const& index, fastx_parser::FastxParser<fastx_parser::Rea
         std::string outs = ss.str();
         ss.str("");
         ofile_mut.lock();
-        out_file.write(outs.data(), outs.size());
+        out_stream.load()->write(outs.data(), outs.size());
         ofile_mut.unlock();
         buff_size = 0;
     }
@@ -249,17 +251,24 @@ int pseudoalign(std::string const& index_filename, std::string const& query_file
     std::mutex iomut;
     std::mutex ofile_mut;
 
+    std::atomic<std::shared_ptr<std::ostream>> out_stream;
     std::ofstream out_file;
-    out_file.open(output_filename, std::ios::out | std::ios::trunc);
-    if (!out_file) {
-        essentials::logger("could not open output file " + output_filename);
-        return 1;
+
+    if (output_filename.empty()) {
+	out_stream.store(std::shared_ptr<std::ostream>(&std::cout, [](std::ostream*){}));
+    } else {
+	out_file.open(output_filename, std::ios::out | std::ios::trunc);
+	if (!out_file) {
+	    essentials::logger("could not open output file " + output_filename);
+	    return 1;
+	}
+	out_stream.store(std::shared_ptr<std::ostream>(&out_file));
     }
 
     for (uint64_t i = 1; i != num_threads; ++i) {
         workers.push_back(std::thread([&index, &rparser, &num_reads, &num_mapped_reads, algo,
-                                       threshold, &out_file, &iomut, &ofile_mut]() {
-            do_map(index, rparser, num_reads, num_mapped_reads, algo, threshold, out_file, iomut,
+                                       threshold, &out_stream, &iomut, &ofile_mut]() {
+            do_map(index, rparser, num_reads, num_mapped_reads, algo, threshold, out_stream, iomut,
                    ofile_mut);
         }));
     }
@@ -296,8 +305,8 @@ int pseudoalign(int argc, char** argv) {
     app.add_option("-q,--query", query_filename,
                    "Query filename in FASTA/FASTQ format (optionally gzipped).")
         ->required();
-    app.add_option("-o,--output", output_filename, "File where output will be written.")
-        ->required();
+    app.add_option("-o,--output", output_filename, "File where output will be written (default: print to stdout).")
+        ->default_val("");
     app.add_option("-t,--threads", num_threads, "Number of threads.")->default_val(1);
     app.add_option("--threshold", threshold, "Threshold for threshold_union algorithm.")
         ->check(CLI::Range(0.0, 1.0));
