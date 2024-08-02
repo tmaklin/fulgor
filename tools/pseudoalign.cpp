@@ -129,7 +129,7 @@ int do_map(FulgorIndex const& index, fastx_parser::FastxParser<fastx_parser::Rea
                 buff_size += 1;
                 if (num_reads > 0 and num_reads % 1000000 == 0) {
                     iomut.lock();
-                    std::cout << "mapped " << num_reads << " reads" << std::endl;
+                    std::cerr << "mapped " << num_reads << " reads" << std::endl;
                     iomut.unlock();
                 }
                 if (buff_size > buff_thresh) {
@@ -170,7 +170,7 @@ int do_map(FulgorIndex const& index, fastx_parser::FastxParser<fastx_parser::Rea
                 colors.clear();
                 if (num_reads > 0 and num_reads % 1000000 == 0) {
                     iomut.lock();
-                    std::cout << "mapped " << num_reads << " reads" << std::endl;
+                    std::cerr << "mapped " << num_reads << " reads" << std::endl;
                     iomut.unlock();
                 }
                 if (buff_size > buff_thresh) {
@@ -218,7 +218,7 @@ int pseudoalign(std::string const& index_filename, std::string const& query_file
     if (((algo == pseudoalignment_algorithm::SKIPPING) or
          (algo == pseudoalignment_algorithm::SKIPPING_KALLISTO)) and
         !(index.get_k2u().canonicalized())) {
-        std::cout << "==> Warning: skipping is only supported for canonicalized indexes. <=="
+        std::cerr << "==> Warning: skipping is only supported for canonicalized indexes. <=="
                   << std::endl;
     }
 
@@ -270,12 +270,12 @@ int pseudoalign(std::string const& index_filename, std::string const& query_file
     t.stop();
     essentials::logger("DONE");
 
-    std::cout << "mapped " << num_reads << " reads" << std::endl;
-    std::cout << "elapsed = " << t.elapsed() << " millisec / ";
-    std::cout << t.elapsed() / 1000 << " sec / ";
-    std::cout << t.elapsed() / 1000 / 60 << " min / ";
-    std::cout << (t.elapsed() * 1000) / num_reads << " musec/read" << std::endl;
-    std::cout << "num_mapped_reads " << num_mapped_reads << "/" << num_reads << " ("
+    std::cerr << "mapped " << num_reads << " reads" << std::endl;
+    std::cerr << "elapsed = " << t.elapsed() << " millisec / ";
+    std::cerr << t.elapsed() / 1000 << " sec / ";
+    std::cerr << t.elapsed() / 1000 / 60 << " min / ";
+    std::cerr << (t.elapsed() * 1000) / num_reads << " musec/read" << std::endl;
+    std::cerr << "num_mapped_reads " << num_mapped_reads << "/" << num_reads << " ("
               << (num_mapped_reads * 100.0) / num_reads << "%)" << std::endl;
 
     return 0;

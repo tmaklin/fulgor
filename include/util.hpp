@@ -65,8 +65,8 @@ struct build_configuration {
 namespace util {
 
 static void print_cmd(int argc, char** argv) {
-    for (int i = 0; i != argc; ++i) std::cout << argv[i] << ' ';
-    std::cout << std::endl;
+    for (int i = 0; i != argc; ++i) std::cerr << argv[i] << ' ';
+    std::cerr << std::endl;
 }
 
 /* return the number of 64-bit words for num_bits */
